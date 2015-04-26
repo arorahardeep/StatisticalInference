@@ -1,0 +1,182 @@
+---
+title: "Statical Inference Project Work - Question 2"
+author: "Hardeep"
+date: "25 April 2015"
+output: pdf_document
+---
+
+
+## Overview
+
+Here we're going to analyze the ToothGrowth data in the R datasets package and report on this analysis.
+
+The ToothGrowth data is the length of odontoblasts (teeth) in each of 10 guinea pigs at each of three dose levels of Vitamin C (0.5, 1, and 2 mg) with each of two delivery methods (orange juice or ascorbic acid).
+
+A data frame with 60 observations on 3 variables.
+
+## Analysis
+
+### 1. Load the ToothGrowth data and perform some basic exploratory data analyses 
+
+Let us look load and look at the dataset first
+
+```{r}
+library(datasets)
+str(ToothGrowth)
+table(ToothGrowth$supp, ToothGrowth$dose)
+```
+
+
+Data has 60 observations, 30 for each supplement (Orange Juice & Vitamin C). Further it has 10 observations for each of 6 dose/supplement combinations.
+
+Let us see this visually
+
+```{r}
+
+TGOJ <- ToothGrowth[ToothGrowth$supp == "OJ", ]
+TGVC <- ToothGrowth[ToothGrowth$supp == "VC", ]
+
+TGOJAgg <- aggregate(TGOJ$len ~ TGOJ$dose, , mean)
+names(TGOJAgg) <- c("len","dose")
+TGVCAgg <- aggregate(TGVC$len ~ TGVC$dose, , mean)
+names(TGVCAgg) <- c("len","dose")
+
+ylm <- c(min(min(TGOJAgg$dose),min(TGVCAgg$dose)),max(max(TGOJAgg$dose),max(TGVCAgg$dose)))
+xlm <- c(min(min(TGOJAgg$len),min(TGVCAgg$len)),max(max(TGOJAgg$len),max(TGVCAgg$len)))
+
+plot(TGOJAgg,  xlim = xlm, ylim = ylm,
+    type = "b", col = "green", lwd = 2, lty = 1, 
+    xlab = "Dose", ylab = "Length", main = "Average Growth (len) per Dose")
+lines(TGVCAgg, col = "red", lwd = 2, lty = 3)
+legend("bottomright", c("Orange Juice", "Vitamin C"), 
+  lwd = 2, lty = c(1, 3), col = c("green", "red"))
+
+```
+
+It shows us that tooth lengths are higher for OJ in most cases and also it increases with the dosage of supplements.
+
+
+### 2. Provide a basic summary of the data.
+
+Let us look at the data summary
+
+```{r}
+
+summary(ToothGrowth)
+
+```
+
+### 3. Use confidence intervals and hypothesis tests to compare tooth growth by supp and dose. (Use the techniques from class even if there's other approaches worth considering)
+
+In order to test our initial judgement from exploratory analysis  we will use the `t.test` function here to perform a Student's t-Test on the data with the defaults of 95% confidence level and equal variances.
+
+#### NULL Hypothesis  
+ * Mean growth rate in both supplements is equal 
+ * Mean growth rate stays same with increase in dosage
+
+We will reject the null hypothesis in favor of the alternative hypothesis when we find a p-value of less than 0.05.
+
+Let's partition the data for conducting the testing
+
+```{r}
+TGVC05 <- TGVC[TGVC$dose==0.5,]
+TGVC10 <- TGVC[TGVC$dose==1.0,]
+TGVC20 <- TGVC[TGVC$dose==2.0,]
+TGOJ05 <- TGOJ[TGOJ$dose==0.5,]
+TGOJ10 <- TGOJ[TGOJ$dose==1.0,]
+TGOJ20 <- TGOJ[TGOJ$dose==2.0,]
+```
+
+
+#### CASE I : Effects of Supplement Type
+
+* Mean growth rate in both supplements is equal 
+
+```{r}
+# Perform t test on vc vs oj at 0.5mg dose
+T05Supps <- t.test(len ~ supp, data=rbind(TGVC05,TGOJ05), var.equal=FALSE)
+
+# Perform t test on vc vs oj at 1.0mg dose
+T10Supps <- t.test(len ~ supp, data=rbind(TGVC10,TGOJ10), var.equal=FALSE)
+
+# Perform t test on vc vs oj at 2.0mg dose
+T20Supps <- t.test(len ~ supp, data=rbind(TGVC20,TGOJ20), var.equal=FALSE)
+```
+
+Summary of the results:
+  
+```{r echo=FALSE}
+suppComp <- c("VC and OJ","VC and OJ","VC and OJ")
+doseLevel <- c("0.5mg","1.0mg","2.0mg")
+pvalue <- c(T05Supps$p.value,T10Supps$p.value,T20Supps$p.value)
+lconf <- c( T05Supps$conf.int[1], T10Supps$conf.int[1], T20Supps$conf.int[1])
+hconf <- c( T05Supps$conf.int[2], T10Supps$conf.int[2], T20Supps$conf.int[2])
+result <- pvalue < 0.05
+hyp1 <- data.frame(suppComp,doseLevel,pvalue,lconf,hconf,result)
+names(hyp1) <- c("supplements","dosage","p-value","-conf.int","+conf.int","reject H0")
+
+hyp1
+
+```
+
+
+### CASE II : Effects of Dosage
+
+* Mean growth rate stays same with increase in dosage
+
+```{r}
+# Perform t test on 0.5mg vs 1.0mg, within each supplement
+TVCDose05and10 <- t.test(len ~ dose, data=rbind(TGVC05,TGVC10), var.equal=TRUE)
+TOJDose05and10 <- t.test(len ~ dose, data=rbind(TGOJ05,TGOJ10), var.equal=TRUE)
+
+# Perform t test on 1.0mg vs 2.0mg, within each supplement
+TVCDose10and20 <- t.test(len ~ dose, data=rbind(TGVC10,TGVC20), var.equal=TRUE)
+TOJDose10and20 <- t.test(len ~ dose, data=rbind(TGOJ10,TGOJ20), var.equal=TRUE)
+
+# Perform t test on 0.5mg vs 2.0mg, within each supplement
+TVCDose05and20 <- t.test(len ~ dose, data=rbind(TGVC05,TGVC20), var.equal=TRUE)
+TOJDose05and20 <- t.test(len ~ dose, data=rbind(TGOJ05,TGOJ20), var.equal=TRUE)
+```
+
+Summary of the results:
+
+```{r echo=FALSE}
+
+supp <- c("VC","OJ","VC","OJ","VC","OJ")
+
+doseLevel <- c("0.5mg and 1.0mg","0.5mg and 1.0mg", 
+               "1.0mg and 2.0mg","1.0mg and 2.0mg",
+               "0.5mg and 2.0mg","0.5mg and 2.0mg")
+
+pvalue <- c(TVCDose05and10$p.value,TVCDose05and10$p.value,
+            TVCDose10and20$p.value,TVCDose10and20$p.value,
+            TVCDose05and20$p.value,TVCDose05and20$p.value)
+
+lconf <- c( TVCDose05and10$conf.int[1], TVCDose05and10$conf.int[1],
+            TVCDose10and20$conf.int[1], TVCDose10and20$conf.int[1],
+            TVCDose05and20$conf.int[1], TVCDose05and20$conf.int[1])
+
+hconf <- c( TVCDose05and10$conf.int[2], TVCDose05and10$conf.int[2],
+            TVCDose10and20$conf.int[2], TVCDose10and20$conf.int[2],
+            TVCDose05and20$conf.int[2], TVCDose05and20$conf.int[2])
+
+result <- pvalue < 0.05
+
+hyp2 <- data.frame(doseLevel,supp, pvalue,lconf,hconf,result)
+
+names(hyp2) <- c("dosage","supplement","p-value","-conf.int","+conf.int","reject H0")
+
+hyp2
+```
+  
+### 4. State your conclusions and the assumptions needed for your conclusions. 
+
+* Mean growth rate in both supplements is equal   
+
+We see there is a correlation between the supplement type (Orange Juice vs Vitamin C) and tooth growth that disappears at a higher dose. For 0.5mg and 1.0mg doses, we see that the p-values are below our threshold and the confidence interval does not include zero, indicating that the increase in tooth growth that's seen with OJ vs VC is statistically significant. Hence we reject the null hypothesis.
+
+However, at 2.0mg this discrepancy vanishes and our null hypothesis at this level is accepted.
+
+* Mean growth rate stays same with increase in dosage  
+
+There is a definite dependence on the dosage level on tooth growth. p-values for all tests were less than the threshold and confidence intervals do not include zero, indicating that the increase in tooth growth when supplement dose is increased is statistically significant and hence we reject the null hypothesis.
